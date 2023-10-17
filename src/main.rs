@@ -44,13 +44,15 @@ impl Hashable for Transaction {
     /// 3 Hash the string produced in step 2 using the SHA-256 hash function
     ///    (remember to ensure that the hex string starts with 0x).
     fn hash(&self) -> String {
-        let strings = format!("{},{},{},{},{},{}",
+        let strings = format!(
+            "{},{},{},{},{},{}",
             &self.amount.to_string().as_str(),
             &self.lock_time.to_string().as_str(),
             &self.receiver.as_str(),
             &self.sender.as_str(),
             &self.signature.as_str(),
-            &self.transaction_fee.to_string().as_str());
+            &self.transaction_fee.to_string().as_str()
+        );
 
         let hash: String = digest(strings);
 
@@ -84,11 +86,17 @@ fn main() {
     // We can process up to 100 transactions in a block
     let transactions_to_process = &executable_transactions[..100];
 
+    let transaction_hashes = compute_transaction_hashes(transactions_to_process.to_vec());
+
     println!("Transaction Hashes:");
-    for transaction in compute_transaction_hashes(transactions_to_process.to_vec()) {
+    for transaction in transaction_hashes.clone() {
         println!("{}", transaction);
     }
 
+    println!(
+        "Merkle root: {}",
+        compute_merkle_tree_root(transaction_hashes)
+    );
 }
 
 fn find_most_recent_block(blockchain: &Vec<Block>) -> &Block {
@@ -133,7 +141,34 @@ fn find_executable_transactions(
 }
 
 fn compute_transaction_hashes(transactions: Vec<Transaction>) -> Vec<String> {
-    return transactions.into_iter().map(|t| t.hash()).collect();
+    return transactions.iter().map(|t| t.hash()).collect();
+}
+
+fn compute_merkle_tree_root(transaction_hashes: Vec<String>) -> String {
+    // is the comparison operator used here the string or numberical comparison?
+    let null_string = "0x0000000000000000000000000000000000000000000000000000000000000000";
+
+    let mut hashes: Vec<String> = transaction_hashes;
+
+    while hashes.len() > 1 {
+        let mut next_level_hashes: Vec<String> = vec![];
+        if hashes.len() % 2 != 0 {
+            hashes.push(null_string.to_string());
+        }
+        for i in 0..(hashes.len() / 2) {
+            let a = hashes.get(2 * i);
+            let b = hashes.get(2 * i + 1);
+
+            if a > b {
+                next_level_hashes.push(digest(a.unwrap().to_string() + &b.unwrap().to_string()));
+            } else {
+                next_level_hashes.push(digest(b.unwrap().to_string() + &a.unwrap().to_string()));
+            }
+        }
+        hashes = next_level_hashes;
+    }
+
+    return "0x".to_owned() + hashes.get(0).unwrap();
 }
 
 fn produce_new_block(transactions: Vec<Transaction>) {}
