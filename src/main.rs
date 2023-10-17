@@ -23,6 +23,34 @@ struct Header {
     transactions_merkle_root: String,
 }
 
+impl Hashable for Header {
+    /// Sort all the above fields in alphabetical order by their key.
+    /// 2. Produce a comma-separated string containing all the values, without
+    ///    any space. Numbers (height, timestamp, nonce, transaction count,
+    ///    difficulty) should be encoded as decimal value without any leading
+    ///    0s. Hashes (previous block header hash, transactions merkle root) and
+    ///    addresses (miner) should be hex-encoded and prepended by 0x.
+    /// 3. Hash the string produced in step 2 using the SHA-256 hash function.
+    fn hash(&self) -> String {
+        let strings = format!(
+            "{},{},{},{},{},{},{},{},{}",
+            &self.difficulty.to_string().as_str(),
+            &self.hash.to_string().as_str(),
+            &self.height.to_string().as_str(),
+            &self.miner.as_str(),
+            &self.nonce.to_string().as_str(),
+            &self.previous_block_header_hash.as_str(),
+            &self.timestamp.to_string().as_str(),
+            &self.transactions_count.to_string().as_str(),
+            &self.transactions_merkle_root.to_string().as_str()
+        );
+
+        let hash: String = digest(strings);
+
+        return "0x".to_string() + &hash;
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct Transaction {
     amount: u64,
@@ -86,17 +114,9 @@ fn main() {
     // We can process up to 100 transactions in a block
     let transactions_to_process = &executable_transactions[..100];
 
-    let transaction_hashes = compute_transaction_hashes(transactions_to_process.to_vec());
+    let block = produce_new_block(transactions_to_process.to_vec(), most_recent_block);
 
-    println!("Transaction Hashes:");
-    for transaction in transaction_hashes.clone() {
-        println!("{}", transaction);
-    }
-
-    println!(
-        "Merkle root: {}",
-        compute_merkle_tree_root(transaction_hashes)
-    );
+    println!("Successfully mined the next block: {}", serde_json::to_string_pretty(&block).unwrap());
 }
 
 fn find_most_recent_block(blockchain: &Vec<Block>) -> &Block {
@@ -171,4 +191,47 @@ fn compute_merkle_tree_root(transaction_hashes: Vec<String>) -> String {
     return "0x".to_owned() + hashes.get(0).unwrap();
 }
 
-fn produce_new_block(transactions: Vec<Transaction>) {}
+fn produce_new_block(transactions: Vec<Transaction>, previous_block: &Block) -> Block {
+    let transaction_hashes = compute_transaction_hashes(transactions.to_vec());
+
+    println!("Transaction Hashes:");
+    for transaction in transaction_hashes.clone() {
+        println!("{}", transaction);
+    }
+
+    let merkle_root =compute_merkle_tree_root(transaction_hashes.clone());
+
+    println!("Merkle root: {}",merkle_root.clone());
+
+    let mut header = Header {
+        difficulty: previous_block.header.difficulty,
+        height: previous_block.header.height + 1,
+        miner: previous_block.header.miner.clone(),
+        nonce: 0,
+        hash: "".to_string(),
+        previous_block_header_hash: previous_block.header.hash.clone(),
+        timestamp: previous_block.header.timestamp + 10,
+        transactions_count: transaction_hashes.len().try_into().unwrap(),
+        transactions_merkle_root: merkle_root,
+    };
+
+    let mut block_header_hash = header.hash();
+
+    while !is_valid_block_header_hash(&block_header_hash, 5) {
+        header.nonce +=1;
+        println!("Trying nonce: {}", header.nonce);
+        block_header_hash = header.hash();
+    }
+
+    header.hash = block_header_hash;
+
+    Block {
+        header,
+        transactions,
+    }
+}
+
+fn is_valid_block_header_hash(hash: &str, difficulty: usize) -> bool {
+    // The hash string should have n=difficulty leading zeros
+    return hash[2..(2+difficulty)] == "0".repeat(difficulty)
+}
