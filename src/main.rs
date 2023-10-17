@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use std::{
-    error::Error,
     fs::File,
     io::{self, Read},
     str::from_utf8,
