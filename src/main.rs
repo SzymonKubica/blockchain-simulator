@@ -1,98 +1,15 @@
-use serde::{Deserialize, Serialize};
-use sha256::digest;
 use std::{
     fs::File,
     io::{self, Read},
     str::from_utf8,
 };
+use sha256::digest;
 
-trait Hashable {
-    fn hash(&self) -> String;
-}
+use crate::model::blockchain::{Block, Header, Transaction};
+use crate::hashing::hashing::Hashable;
 
-#[derive(Serialize, Deserialize, Debug)]
-struct Header {
-    difficulty: u32,
-    height: u32,
-    miner: String,
-    nonce: u32,
-    hash: String,
-    previous_block_header_hash: String,
-    timestamp: u32,
-    transactions_count: u32,
-    transactions_merkle_root: String,
-}
-
-impl Hashable for Header {
-    /// Sort all the above fields in alphabetical order by their key.
-    /// 2. Produce a comma-separated string containing all the values, without
-    ///    any space. Numbers (height, timestamp, nonce, transaction count,
-    ///    difficulty) should be encoded as decimal value without any leading
-    ///    0s. Hashes (previous block header hash, transactions merkle root) and
-    ///    addresses (miner) should be hex-encoded and prepended by 0x.
-    /// 3. Hash the string produced in step 2 using the SHA-256 hash function.
-    fn hash(&self) -> String {
-        let strings = format!(
-            "{},{},{},{},{},{},{},{},{}",
-            &self.difficulty.to_string().as_str(),
-            &self.hash.to_string().as_str(),
-            &self.height.to_string().as_str(),
-            &self.miner.as_str(),
-            &self.nonce.to_string().as_str(),
-            &self.previous_block_header_hash.as_str(),
-            &self.timestamp.to_string().as_str(),
-            &self.transactions_count.to_string().as_str(),
-            &self.transactions_merkle_root.to_string().as_str()
-        );
-
-        let hash: String = digest(strings);
-
-        return "0x".to_string() + &hash;
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-struct Transaction {
-    amount: u64,
-    lock_time: u32,
-    receiver: String,
-    sender: String,
-    signature: String,
-    transaction_fee: u64,
-}
-
-impl Hashable for Transaction {
-    /// A transaction hash is created by performing the following steps:
-    ///
-    /// 1 Ensure that transaction fields in alphabetical order by their key.
-    /// 2 Produce a comma-separated string containing all the values, without any
-    ///    space. Numbers (amount, lock time, transaction fee) should be encoded as
-    ///    decimal value without any leading 0s. The signature and addresses
-    ///    (sender, receiver) should be hex-encoded.
-    /// 3 Hash the string produced in step 2 using the SHA-256 hash function
-    ///    (remember to ensure that the hex string starts with 0x).
-    fn hash(&self) -> String {
-        let strings = format!(
-            "{},{},{},{},{},{}",
-            &self.amount.to_string().as_str(),
-            &self.lock_time.to_string().as_str(),
-            &self.receiver.as_str(),
-            &self.sender.as_str(),
-            &self.signature.as_str(),
-            &self.transaction_fee.to_string().as_str()
-        );
-
-        let hash: String = digest(strings);
-
-        return "0x".to_string() + &hash;
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Block {
-    header: Header,
-    transactions: Vec<Transaction>,
-}
+mod hashing;
+mod model;
 
 fn main() {
     let blockchain = load_blockchain().unwrap();
@@ -116,7 +33,10 @@ fn main() {
 
     let block = produce_new_block(transactions_to_process.to_vec(), most_recent_block);
 
-    println!("Successfully mined the next block: {}", serde_json::to_string_pretty(&block).unwrap());
+    println!(
+        "Successfully mined the next block: {}",
+        serde_json::to_string_pretty(&block).unwrap()
+    );
 }
 
 fn find_most_recent_block(blockchain: &Vec<Block>) -> &Block {
@@ -199,9 +119,9 @@ fn produce_new_block(transactions: Vec<Transaction>, previous_block: &Block) -> 
         println!("{}", transaction);
     }
 
-    let merkle_root =compute_merkle_tree_root(transaction_hashes.clone());
+    let merkle_root = compute_merkle_tree_root(transaction_hashes.clone());
 
-    println!("Merkle root: {}",merkle_root.clone());
+    println!("Merkle root: {}", merkle_root.clone());
 
     let mut header = Header {
         difficulty: previous_block.header.difficulty,
@@ -218,7 +138,7 @@ fn produce_new_block(transactions: Vec<Transaction>, previous_block: &Block) -> 
     let mut block_header_hash = header.hash();
 
     while !is_valid_block_header_hash(&block_header_hash, 5) {
-        header.nonce +=1;
+        header.nonce += 1;
         println!("Trying nonce: {}", header.nonce);
         block_header_hash = header.hash();
     }
@@ -233,5 +153,5 @@ fn produce_new_block(transactions: Vec<Transaction>, previous_block: &Block) -> 
 
 fn is_valid_block_header_hash(hash: &str, difficulty: usize) -> bool {
     // The hash string should have n=difficulty leading zeros
-    return hash[2..(2+difficulty)] == "0".repeat(difficulty)
+    return hash[2..(2 + difficulty)] == "0".repeat(difficulty);
 }
