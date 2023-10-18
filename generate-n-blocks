@@ -8,5 +8,6 @@ else
   --mempool ./data/mempool.json \
   --blockchain-state-output ./data/new-blockchain.json \
   --mempool-output ./data/new-mempool.json \
-  --blocks-to-mine $1
+  --blocks-to-mine $1 \
+  produce-blocks
 fi
