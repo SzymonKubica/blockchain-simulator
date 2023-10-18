@@ -4,7 +4,7 @@ use std::{
     str::from_utf8,
 };
 
-use log::debug;
+use clap::{Arg, Parser, command, arg};
 
 use crate::hashing::hashing::Hashable;
 use crate::model::blockchain::{Block, Transaction};
@@ -14,11 +14,39 @@ mod hashing;
 mod model;
 mod node;
 
+/// Blockchain Miner Simulator
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// File storing the initial state of the blockchain
+    #[arg(long)]
+    blockchain_state: String,
+
+    /// File storing the final and intermediate state of the blockchain
+    #[arg(long)]
+    blockchain_state_output: String,
+
+    /// Name of the file storing the initial mempool
+    #[arg(long)]
+    mempool: String,
+
+    /// Name of the file storing the intermediate and final mempool
+    #[arg(long)]
+    mempool_output: String,
+
+    /// Number of blocks to mine
+    #[arg(short, long)]
+    blocks_to_mine: u32,
+
+}
+
 fn main() {
     let env = env_logger::Env::default()
         .filter_or("MY_LOG_LEVEL", "info")
         .write_style_or("MY_LOG_STYLE", "always");
     env_logger::init_from_env(env);
+
+    let args = Args::parse();
 
     let mut blockchain = load_blockchain().unwrap();
     let most_recent_block = find_most_recent_block(&blockchain);
@@ -28,11 +56,13 @@ fn main() {
         find_executable_transactions(transactions, most_recent_block.header.timestamp + 10);
 
     // We can process up to 100 transactions in a block
-    let transactions_to_process = &executable_transactions[..100];
+    let transactions_to_process = (&executable_transactions[..100]).to_vec();
 
-    let block = mine_new_block(transactions_to_process.to_vec(), most_recent_block);
+    let block = mine_new_block(transactions_to_process, most_recent_block);
+    let block2 = mine_new_block((&executable_transactions[100..200]).to_vec(), &block);
 
     blockchain.push(block);
+    blockchain.push(block2);
     fs::write(
         "new-blockchain.js",
         serde_json::to_string_pretty(&blockchain).unwrap(),
