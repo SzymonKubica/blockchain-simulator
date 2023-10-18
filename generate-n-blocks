@@ -1,0 +1,12 @@
+#!/bin/sh
+
+if [ -z $1 ]
+then
+  echo "Usage: ./generate-n-blocks <number of blocks to generate>"
+else
+  ./target/release/blockchain-simulator --blockchain-state ./data/blockchain.json \
+  --mempool ./data/mempool.json \
+  --blockchain-state-output ./data/new-blockchain.json \
+  --mempool-output ./data/new-mempool.json \
+  --blocks-to-mine $1
+fi
