@@ -1,10 +1,10 @@
 use std::{
     fs::{self, File},
     io::{self, Read},
-    str::from_utf8,
+    str::from_utf8, fmt::Display,
 };
 
-use clap::{Arg, Parser, command, arg};
+use clap::{Arg, Parser, command, arg, Subcommand};
 
 use crate::hashing::hashing::Hashable;
 use crate::model::blockchain::{Block, Transaction};
@@ -15,10 +15,22 @@ mod model;
 mod node;
 
 /// Blockchain Miner Simulator
+
+#[derive(Debug, Subcommand)]
+enum SimulatorMode {
+    ProduceBlocks,
+    GetTransactionHash,
+    GenerateInclusionProof,
+    VerifyInclusionProof,
+    GenerateTransactions,
+}
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// File storing the initial state of the blockchain
+    #[command(subcommand)]
+    command: SimulatorMode,
+
     #[arg(long)]
     blockchain_state: String,
 
@@ -37,7 +49,6 @@ struct Args {
     /// Number of blocks to mine
     #[arg(short, long)]
     blocks_to_mine: u32,
-
 }
 
 fn main() {
@@ -47,7 +58,21 @@ fn main() {
     env_logger::init_from_env(env);
 
     let args = Args::parse();
+    match args.command {
+        SimulatorMode::ProduceBlocks => produce_blocks(args),
+        SimulatorMode::GetTransactionHash => show_transaction_hash(args),
+        SimulatorMode::GenerateInclusionProof => todo!(),
+        SimulatorMode::VerifyInclusionProof => todo!(),
+        SimulatorMode::GenerateTransactions => todo!(),
+    }
 
+}
+
+fn show_transaction_hash(args: Args) {
+    todo!()
+}
+
+fn produce_blocks(args: Args) {
     let mut blockchain = load_blockchain().unwrap();
     let most_recent_block = find_most_recent_block(&blockchain);
 
