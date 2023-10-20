@@ -67,3 +67,16 @@ pub mod blockchain {
         }
     }
 }
+
+pub mod simulator {
+    use clap::Subcommand;
+
+    #[derive(Debug, Subcommand, PartialEq, Eq)]
+    pub enum SimulatorMode {
+        ProduceBlocks,
+        GetTransactionHash,
+        GenerateInclusionProof,
+        VerifyInclusionProof,
+        GenerateTransactions,
+    }
+}

@@ -1,8 +1,64 @@
 pub mod miner {
-    use log::{info, debug};
+    use std::fs;
+
+    use log::{debug, info};
     use sha256::digest;
 
-    use crate::{model::blockchain::{Transaction, Block, Header, MerkleTreeNode}, hashing::hashing::Hashable};
+    use crate::{
+        data_sourcing::data_provider::{load_blockchain, load_transactions},
+        hashing::hashing::Hashable,
+        model::blockchain::{Block, Header, MerkleTreeNode, Transaction}, args::args::ProduceBlocksArgs,
+    };
+
+    pub fn produce_blocks(args: ProduceBlocksArgs) {
+        info!("Loading the blockchain from {}", args.blockchain_state);
+        let mut blockchain = load_blockchain(&args.blockchain_state).unwrap();
+
+        info!("Loading the available mempool from {}", args.mempool);
+        let transactions = load_transactions(&args.mempool).unwrap();
+
+        let mut most_recent_block = blockchain
+            .iter()
+            .max_by(|b1: &&Block, b2: &&Block| b1.header.timestamp.cmp(&b2.header.timestamp))
+            .unwrap();
+
+        let mut executable_transactions =
+            find_executable_transactions(transactions, most_recent_block.header.timestamp + 10);
+
+        for _ in 0..args.blocks_to_mine {
+            let new_block_transactions = executable_transactions.drain(0..100).collect();
+            let block = mine_new_block(new_block_transactions, most_recent_block);
+            blockchain.push(block);
+            most_recent_block = blockchain.last().unwrap();
+        }
+
+        fs::write(
+            &args.blockchain_state_output,
+            serde_json::to_string_pretty(&blockchain).unwrap(),
+        )
+        .unwrap();
+
+        fs::write(
+            &args.mempool_output,
+            serde_json::to_string_pretty(&executable_transactions).unwrap(),
+        )
+        .unwrap();
+    }
+
+    fn find_executable_transactions(
+        mut transactions: Vec<Transaction>,
+        new_block_timestamp: u32,
+    ) -> Vec<Transaction> {
+        // Need to sort the transactions in the decreasing order of their fees.
+        transactions.sort_by(|t1: &Transaction, t2: &Transaction| {
+            t2.transaction_fee.cmp(&t1.transaction_fee)
+        });
+
+        transactions
+            .into_iter()
+            .filter(|t| t.lock_time > new_block_timestamp)
+            .collect()
+    }
 
     pub fn compute_transaction_hashes(transactions: Vec<Transaction>) -> Vec<String> {
         transactions.iter().map(|t| t.hash()).collect()
