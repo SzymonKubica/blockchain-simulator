@@ -65,7 +65,7 @@ pub mod miner {
         transactions.iter().map(|t| t.hash()).collect()
     }
 
-    pub fn compute_merkle_tree_root(transaction_hashes: Vec<String>) -> MerkleTreeNode {
+    pub fn construct_merkle_tree(transaction_hashes: Vec<String>) -> MerkleTreeNode {
         // is the comparison operator used here the string or numberical comparison?
         let null_string = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
@@ -98,11 +98,12 @@ pub mod miner {
                 } else {
                     "0x".to_string() + &digest(hash_b + &hash_a)
                 };
-                next_level_nodes.push(MerkleTreeNode {
+                let new_node = MerkleTreeNode {
                     hash: new_hash,
                     left: Some(Box::new(node_a.clone())),
                     right: Some(Box::new(node_b.clone())),
-                })
+                };
+                next_level_nodes.push(new_node)
             }
             nodes = next_level_nodes;
         }
@@ -120,7 +121,7 @@ pub mod miner {
         let transaction_hashes = compute_transaction_hashes(transactions.to_vec());
 
         info!("Assembling the Merkle tree...");
-        let merkle_root = compute_merkle_tree_root(transaction_hashes.clone());
+        let merkle_root = construct_merkle_tree(transaction_hashes.clone());
         debug!("Assembled Merkle tree: \n{}", merkle_root.clone());
         info!("Merkle root: {}", merkle_root.hash);
 
@@ -176,4 +177,141 @@ pub mod miner {
     pub fn is_valid_block_header_hash(hash: &str, difficulty: usize) -> bool {
         hash[2..(2 + difficulty)] == "0".repeat(difficulty)
     }
+}
+
+pub mod validator {
+    use std::{cell::RefCell, fs, rc::Rc};
+
+    use log::info;
+    use sha256::{Sha256Digest, digest};
+
+    use crate::{
+        args::args::{GenerateInclusionProofArgs, VerifyInclusionProofArgs},
+        data_sourcing::data_provider::load_blockchain,
+        model::blockchain::MerkleTreeNode,
+        node::miner::{compute_transaction_hashes, construct_merkle_tree},
+    };
+
+    pub fn generate_inclusion_proof(args: GenerateInclusionProofArgs) {
+        info!("Loading the blockchain from {}", args.blockchain_state);
+        let blockchain = load_blockchain(&args.blockchain_state).unwrap();
+
+        let block = blockchain.get(args.block_number - 1).unwrap();
+
+        let transactions = &block.transactions;
+
+        info!("Computing transaction hashes...");
+        let transaction_hashes = compute_transaction_hashes(transactions.to_vec());
+
+        info!("Assembling the Merkle tree...");
+        let merkle_root = construct_merkle_tree(transaction_hashes.clone());
+
+        let transaction_hash_to_verify = &args.transaction_hash_to_verify;
+
+        if let Some(inclusion_proof) =
+            produce_inclusion_proof(merkle_root.clone(), transaction_hash_to_verify.to_string())
+        {
+            let proof = serde_json::to_string_pretty(&inclusion_proof).unwrap();
+            fs::write(&args.inclusion_proof, proof.clone()).unwrap();
+            info!("Generated Inclusion proof: {}", proof);
+
+            // mock validate the proof
+            info!("Validating the proof...");
+            let mut current_hash = transaction_hash_to_verify.to_string();
+
+            for i in 0..inclusion_proof.len() {
+                let hash_a = current_hash;
+                let hash_b = inclusion_proof[i].to_string();
+
+                current_hash = if hash_a > hash_b {
+                    "0x".to_string() + &digest(hash_a + &hash_b)
+                } else {
+                    "0x".to_string() + &digest(hash_b + &hash_a)
+                };
+            }
+            println!("Final hash: {}", current_hash);
+            println!("Merkle root: {}", merkle_root.hash);
+
+        } else {
+            info!(
+                "Unable to find the transaction in the given block, no inclusion proof generated."
+            )
+        }
+    }
+
+    fn produce_inclusion_proof(
+        merkle_root: MerkleTreeNode,
+        transaction_hash_to_verify: String,
+    ) -> Option<Vec<String>> {
+        let path_to_transaction = find_path_to_transaction_in_merkle_tree(
+            &merkle_root,
+            &transaction_hash_to_verify,
+            vec![],
+        )?;
+
+        // Path to transaction starts at the root node and then includes all
+        // nodes that we have to traverse to get to that transaction
+
+        // We need to find the transaction hashes that need to be provided for the
+        // inclusion proof, those are the siblings of all transactions that are included in
+        // the path.
+
+
+        let mut proof: Vec<String> = vec![];
+
+        print!("{}", serde_json::to_string_pretty(&path_to_transaction).unwrap().clone());
+        for i in 0..path_to_transaction.len() - 1 {
+            let current_parent = path_to_transaction.get(i).unwrap();
+            let current_node = path_to_transaction.get(i+1).unwrap();
+
+            // We always need to pick the node that is different from the current
+            // node (the other sibling) and extract its hash to the vector of hashes.
+
+            if current_parent.left.as_ref().unwrap().hash == current_node.hash {
+                proof.push(current_parent.right.as_ref().unwrap().hash.clone());
+            } else {
+                proof.push(current_parent.left.as_ref().unwrap().hash.clone());
+            }
+        }
+
+        return Some(proof.into_iter().rev().collect());
+    }
+
+    fn find_path_to_transaction_in_merkle_tree(
+        current_node: &MerkleTreeNode,
+        transaction_hash_to_verify: &str,
+        path_accumulator: Vec<MerkleTreeNode>,
+    ) -> Option<Vec<MerkleTreeNode>> {
+        let mut new_path_accumulator = path_accumulator.clone();
+        new_path_accumulator.push(current_node.clone());
+        if current_node.hash == transaction_hash_to_verify {
+            return Some(new_path_accumulator.to_vec());
+        }
+
+        if let Some(node) = &current_node.left {
+            let maybe_found = find_path_to_transaction_in_merkle_tree(
+                node,
+                transaction_hash_to_verify,
+                new_path_accumulator.clone(),
+            );
+            if maybe_found.is_some() {
+                return maybe_found;
+            }
+        }
+
+        if let Some(node) = &current_node.right {
+            let maybe_found = find_path_to_transaction_in_merkle_tree(
+                node,
+                transaction_hash_to_verify,
+                new_path_accumulator.clone(),
+            );
+            if maybe_found.is_some() {
+                return maybe_found;
+            }
+        }
+
+        return None;
+    }
+
+    pub fn verify_inclusion_proof(args: VerifyInclusionProofArgs) {}
 }

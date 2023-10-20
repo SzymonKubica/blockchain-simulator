@@ -1,5 +1,5 @@
 pub mod blockchain {
-    use std::fmt::Display;
+    use std::{fmt::Display, cell::RefCell, rc::Rc};
 
     use serde::{Deserialize, Serialize};
 
@@ -32,7 +32,7 @@ pub mod blockchain {
         pub transactions: Vec<Transaction>,
     }
 
-    #[derive(Clone)]
+    #[derive(Clone, Debug, Serialize)]
     pub struct MerkleTreeNode {
         pub hash: String,
         pub left: Option<Box<MerkleTreeNode>>,

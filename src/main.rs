@@ -2,7 +2,7 @@ use args::args::Args;
 
 use clap::Parser;
 use model::simulator::SimulatorMode;
-use node::miner::produce_blocks;
+use node::{miner::produce_blocks, validator::generate_inclusion_proof};
 use views::views::show_transaction_hash;
 
 mod args;
@@ -23,7 +23,7 @@ fn main() {
     match args.command {
         SimulatorMode::ProduceBlocks => produce_blocks(args.into()),
         SimulatorMode::GetTransactionHash => show_transaction_hash(args.into()),
-        SimulatorMode::GenerateInclusionProof => todo!(),
+        SimulatorMode::GenerateInclusionProof => generate_inclusion_proof(args.into()),
         SimulatorMode::VerifyInclusionProof => todo!(),
         SimulatorMode::GenerateTransactions => todo!(),
     }

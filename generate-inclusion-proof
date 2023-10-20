@@ -1,0 +1,12 @@
+#!/bin/sh
+
+if [ -z $1 ]
+then
+  echo "Usage: ./generate-inclusion-proof <block-number> <transaction-hash>"
+else
+  ./target/release/blockchain-simulator --blockchain-state ./data/blockchain.json \
+  --block-number $1 \
+  --transaction-hash-to-verify $2 \
+  --inclusion-proof proof.json \
+  generate-inclusion-proof # For some reason the enum subcommand argument needs to come last
+fi
