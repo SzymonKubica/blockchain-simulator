@@ -54,8 +54,7 @@ pub mod hashing {
                 &self.signature.as_str(),
                 &self.transaction_fee.to_string().as_str()
             );
-
-            let hash: String = digest(strings);
+            let hash: String = digest(strings.to_string());
 
             return "0x".to_string() + &hash;
         }

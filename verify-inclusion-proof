@@ -1,4 +1,10 @@
 #!/bin/sh
-./target/release/blockchain-simulator --blockchain-state ./data/blockchain.json \
---inclusion-proof proof.json \
-verify-inclusion-proof # For some reason the enum subcommand argument needs to come last
+if [ -z "$1" ]
+then
+  echo "Usage: ./verify-inclusion-proof <block-number>"
+else
+  ./target/release/blockchain-simulator --blockchain-state ./data/new-blockchain.json \
+  --block-number $1 \
+  --inclusion-proof proof.json \
+  verify-inclusion-proof # For some reason the enum subcommand argument needs to come last
+fi

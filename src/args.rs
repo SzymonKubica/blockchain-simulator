@@ -181,16 +181,23 @@ pub mod args {
     pub struct VerifyInclusionProofArgs {
         /// File storing the state of the blockchain
         pub blockchain_state: String,
+        /// Number of the block that we want to check if it contains the given
+        /// transaction
+        pub block_number: usize,
         /// Name of the inclusion proof file to verify.
         pub inclusion_proof: String,
     }
 
     impl From<Args> for VerifyInclusionProofArgs {
         fn from(args: Args) -> Self {
-            assert!(args.command == SimulatorMode::GenerateInclusionProof);
+            assert!(args.command == SimulatorMode::VerifyInclusionProof);
             assert!(
                 args.blockchain_state.is_some(),
                 "File with the initial blockchain state is required."
+            );
+            assert!(
+                args.block_number.is_some(),
+                "Output file for blockchain state is required."
             );
             assert!(
                 args.inclusion_proof.is_some(),
@@ -198,6 +205,7 @@ pub mod args {
             );
             VerifyInclusionProofArgs {
                 blockchain_state: args.blockchain_state.unwrap(),
+                block_number: args.block_number.unwrap(),
                 inclusion_proof: args.inclusion_proof.unwrap(),
             }
         }

@@ -5,12 +5,18 @@ pub mod data_provider {
         str::from_utf8,
     };
 
-    use crate::model::blockchain::{Block, Transaction};
+    use crate::model::blockchain::{Block, Transaction, InclusionProof};
 
     pub fn load_blockchain(source_file_name: &str) -> Result<Vec<Block>, String> {
         let file_str_contents = read_file_contents(source_file_name).unwrap();
         let blockchain: Vec<Block> = serde_json::from_str(&file_str_contents).unwrap();
         Ok(blockchain)
+    }
+
+    pub fn load_inclusion_proof(source_file_name: &str) -> Result<InclusionProof, String> {
+        let file_str_contents = read_file_contents(source_file_name).unwrap();
+        let proof: InclusionProof = serde_json::from_str(&file_str_contents).unwrap();
+        Ok(proof)
     }
 
     pub fn load_transactions(file_name: &str) -> Result<Vec<Transaction>, String> {

@@ -4,7 +4,7 @@ if [ -z $1 ]
 then
   echo "Usage: ./generate-inclusion-proof <block-number> <transaction-hash>"
 else
-  ./target/release/blockchain-simulator --blockchain-state ./data/blockchain.json \
+  ./target/release/blockchain-simulator --blockchain-state ./data/new-blockchain.json \
   --block-number $1 \
   --transaction-hash-to-verify $2 \
   --inclusion-proof proof.json \
