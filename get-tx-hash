@@ -1,0 +1,11 @@
+#!/bin/sh
+
+if [ -z $1 ]
+then
+  echo "Usage: ./get-tx-hash <block-number> <transaction-number> (1-based indexing)"
+else
+  ./target/release/blockchain-simulator --blockchain-state ./data/blockchain.json \
+  --block-number $1 \
+  --transaction-number-in-block $2 \
+  get-transaction-hash # For some reason the enum subcommand argument needs to come last
+fi
