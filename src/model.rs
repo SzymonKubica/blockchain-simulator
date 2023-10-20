@@ -3,7 +3,7 @@ pub mod blockchain {
 
     use serde::{Deserialize, Serialize};
 
-    #[derive(Serialize, Deserialize, Debug)]
+    #[derive(Serialize, Deserialize, Debug, Clone)]
     pub struct Header {
         pub difficulty: u32,
         pub height: u32,
@@ -26,7 +26,7 @@ pub mod blockchain {
         pub transaction_fee: u64,
     }
 
-    #[derive(Serialize, Deserialize, Debug)]
+    #[derive(Serialize, Deserialize, Debug, Clone)]
     pub struct Block {
         pub header: Header,
         pub transactions: Vec<Transaction>,

@@ -1,10 +1,11 @@
 use std::{
+    fmt::Display,
     fs::{self, File},
     io::{self, Read},
-    str::from_utf8, fmt::Display,
+    str::from_utf8,
 };
 
-use clap::{Arg, Parser, command, arg, Subcommand};
+use clap::{arg, command, Arg, Parser, Subcommand};
 
 use crate::hashing::hashing::Hashable;
 use crate::model::blockchain::{Block, Transaction};
@@ -65,7 +66,6 @@ fn main() {
         SimulatorMode::VerifyInclusionProof => todo!(),
         SimulatorMode::GenerateTransactions => todo!(),
     }
-
 }
 
 fn show_transaction_hash(args: Args) {
@@ -74,20 +74,22 @@ fn show_transaction_hash(args: Args) {
 
 fn produce_blocks(args: Args) {
     let mut blockchain = load_blockchain().unwrap();
-    let most_recent_block = find_most_recent_block(&blockchain);
+    let mut most_recent_block = blockchain
+        .iter()
+        .max_by(|b1: &&Block, b2: &&Block| b1.header.timestamp.cmp(&b2.header.timestamp))
+        .unwrap();
 
     let transactions = load_transactions().unwrap();
-    let executable_transactions =
+    let mut executable_transactions =
         find_executable_transactions(transactions, most_recent_block.header.timestamp + 10);
 
-    // We can process up to 100 transactions in a block
-    let transactions_to_process = (&executable_transactions[..100]).to_vec();
+    for _ in 0..args.blocks_to_mine {
+        let new_block_transactions = executable_transactions.drain(0..100).collect();
+        let block = mine_new_block(new_block_transactions, most_recent_block);
+        blockchain.push(block);
+        most_recent_block = blockchain.last().unwrap();
+    }
 
-    let block = mine_new_block(transactions_to_process, most_recent_block);
-    let block2 = mine_new_block((&executable_transactions[100..200]).to_vec(), &block);
-
-    blockchain.push(block);
-    blockchain.push(block2);
     fs::write(
         "new-blockchain.js",
         serde_json::to_string_pretty(&blockchain).unwrap(),
@@ -103,13 +105,6 @@ fn get_transaction_hash(
     let block = blockchain.get(block_number - 1)?;
     let transaction = block.transactions.get(transaction_number - 1)?;
     Some(transaction.hash().to_owned())
-}
-
-fn find_most_recent_block(blockchain: &Vec<Block>) -> &Block {
-    blockchain
-        .iter()
-        .max_by(|b1: &&Block, b2: &&Block| b1.header.timestamp.cmp(&b2.header.timestamp))
-        .unwrap()
 }
 
 fn load_blockchain() -> Result<Vec<Block>, String> {
