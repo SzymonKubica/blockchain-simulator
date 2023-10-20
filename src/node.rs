@@ -5,9 +5,10 @@ pub mod miner {
     use sha256::digest;
 
     use crate::{
+        args::args::ProduceBlocksArgs,
         data_sourcing::data_provider::{load_blockchain, load_transactions},
         hashing::hashing::Hashable,
-        model::blockchain::{Block, Header, MerkleTreeNode, Transaction}, args::args::ProduceBlocksArgs,
+        model::blockchain::{Block, Header, MerkleTreeNode, Transaction},
     };
 
     pub fn produce_blocks(args: ProduceBlocksArgs) {
@@ -170,8 +171,9 @@ pub mod miner {
         }
     }
 
+    /// The hash string should have n=difficulty leading zeros to be considered
+    /// valid. It also needs to start with "0x".
     pub fn is_valid_block_header_hash(hash: &str, difficulty: usize) -> bool {
-        // The hash string should have n=difficulty leading zeros
         hash[2..(2 + difficulty)] == "0".repeat(difficulty)
     }
 }

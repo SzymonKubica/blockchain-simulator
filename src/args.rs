@@ -29,14 +29,23 @@ pub mod args {
         #[arg(short, long)]
         blocks_to_mine: Option<u32>,
 
-        // Arguments for the get-transaction-hash mode
-        // Number of the block that we want to index
+        /// Arguments for the get-transaction-hash mode
+        /// Number of the block that we want to index
         #[arg(long)]
         block_number: Option<usize>,
 
-        // Number of the transaction in that block that we want to get
+        /// Number of the transaction in that block that we want to get
         #[arg(long)]
         transaction_number_in_block: Option<usize>,
+
+        /// The hash of the transaction for which we want to provide the inclusion
+        /// proof.
+        #[arg(long)]
+        transaction_hash_to_verify: Option<String>,
+
+        /// Name of the file containing (or to contain) the inclusion proof
+        #[arg(long)]
+        inclusion_proof: Option<String>,
     }
 
     pub struct ProduceBlocksArgs {
@@ -121,6 +130,75 @@ pub mod args {
                 blockchain_state: args.blockchain_state.unwrap(),
                 block_number: args.block_number.unwrap(),
                 transaction_number_in_block: args.transaction_number_in_block.unwrap(),
+            }
+        }
+    }
+
+    #[derive(Debug)]
+    pub struct GenerateInclusionProofArgs {
+        /// File storing the state of the blockchain
+        pub blockchain_state: String,
+        /// Number of the block that we want to check if it contains the given
+        /// transaction
+        pub block_number: usize,
+        /// Hash of the transaction that we want to test if it is contained in
+        /// the block above
+        pub transaction_hash_to_verify: String,
+        /// Name of the inclusion proof destination file.
+        pub inclusion_proof: String,
+    }
+
+    impl From<Args> for GenerateInclusionProofArgs {
+        fn from(args: Args) -> Self {
+            assert!(args.command == SimulatorMode::GenerateInclusionProof);
+            assert!(
+                args.blockchain_state.is_some(),
+                "File with the initial blockchain state is required."
+            );
+            assert!(
+                args.block_number.is_some(),
+                "Output file for blockchain state is required."
+            );
+            assert!(
+                args.transaction_hash_to_verify.is_some(),
+                "Transaction hash to prove inclusion for is required."
+            );
+            assert!(
+                args.inclusion_proof.is_some(),
+                "The name of the inclusion proof destination file is required."
+            );
+
+            GenerateInclusionProofArgs {
+                blockchain_state: args.blockchain_state.unwrap(),
+                block_number: args.block_number.unwrap(),
+                transaction_hash_to_verify: args.transaction_hash_to_verify.unwrap(),
+                inclusion_proof: args.inclusion_proof.unwrap(),
+            }
+        }
+    }
+
+    #[derive(Debug)]
+    pub struct VerifyInclusionProofArgs {
+        /// File storing the state of the blockchain
+        pub blockchain_state: String,
+        /// Name of the inclusion proof file to verify.
+        pub inclusion_proof: String,
+    }
+
+    impl From<Args> for VerifyInclusionProofArgs {
+        fn from(args: Args) -> Self {
+            assert!(args.command == SimulatorMode::GenerateInclusionProof);
+            assert!(
+                args.blockchain_state.is_some(),
+                "File with the initial blockchain state is required."
+            );
+            assert!(
+                args.inclusion_proof.is_some(),
+                "File containing the inclusion proof to verify is required"
+            );
+            VerifyInclusionProofArgs {
+                blockchain_state: args.blockchain_state.unwrap(),
+                inclusion_proof: args.inclusion_proof.unwrap(),
             }
         }
     }
