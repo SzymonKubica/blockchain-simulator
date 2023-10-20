@@ -1,11 +1,11 @@
 pub mod miner {
-    use log::info;
+    use log::{info, debug};
     use sha256::digest;
 
     use crate::{model::blockchain::{Transaction, Block, Header, MerkleTreeNode}, hashing::hashing::Hashable};
 
     pub fn compute_transaction_hashes(transactions: Vec<Transaction>) -> Vec<String> {
-        return transactions.iter().map(|t| t.hash()).collect();
+        transactions.iter().map(|t| t.hash()).collect()
     }
 
     pub fn compute_merkle_tree_root(transaction_hashes: Vec<String>) -> MerkleTreeNode {
@@ -64,8 +64,7 @@ pub mod miner {
 
         info!("Assembling the Merkle tree...");
         let merkle_root = compute_merkle_tree_root(transaction_hashes.clone());
-        info!("Assembled Merkle tree: \n{}", merkle_root.clone());
-
+        debug!("Assembled Merkle tree: \n{}", merkle_root.clone());
         info!("Merkle root: {}", merkle_root.hash);
 
         let mut header = Header {
@@ -79,7 +78,8 @@ pub mod miner {
             transactions_count: transaction_hashes.len().try_into().unwrap(),
             transactions_merkle_root: merkle_root.hash,
         };
-        info!(
+
+        debug!(
             "Assembled the header of the new block: \n{}",
             serde_json::to_string_pretty(&header).unwrap()
         );
@@ -89,14 +89,13 @@ pub mod miner {
         info!("Mining the new block...");
         while !is_valid_block_header_hash(&block_header_hash, 5) {
             header.nonce += 1;
-            let log_every_n_nonce = 50000;
+            let log_every_n_nonce = 100000;
             if header.nonce % log_every_n_nonce == 0 {
                 info!("Tested nonce number: {}", header.nonce);
             }
             block_header_hash = header.hash();
         }
 
-        info!("Successfully mined the new block!");
         info!(
             "The nonce required to make the header hash valid is: {}",
             header.nonce
@@ -105,7 +104,7 @@ pub mod miner {
         header.hash = block_header_hash;
 
         info!(
-            "Successfully mined the next block with header:\n {}",
+            "Successfully mined the next block with header:\n{}",
             serde_json::to_string_pretty(&header).unwrap()
         );
 
@@ -117,6 +116,6 @@ pub mod miner {
 
     pub fn is_valid_block_header_hash(hash: &str, difficulty: usize) -> bool {
         // The hash string should have n=difficulty leading zeros
-        return hash[2..(2 + difficulty)] == "0".repeat(difficulty);
+        hash[2..(2 + difficulty)] == "0".repeat(difficulty)
     }
 }

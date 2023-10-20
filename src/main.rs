@@ -5,7 +5,9 @@ use std::{
     str::from_utf8,
 };
 
-use clap::{arg, command, Arg, Parser, Subcommand};
+use log::info;
+
+use clap::{arg, command, Parser, Subcommand};
 
 use crate::hashing::hashing::Hashable;
 use crate::model::blockchain::{Block, Transaction};
@@ -73,13 +75,18 @@ fn show_transaction_hash(args: Args) {
 }
 
 fn produce_blocks(args: Args) {
-    let mut blockchain = load_blockchain().unwrap();
+
+    info!("Loading the blockchain from {}", args.blockchain_state);
+    let mut blockchain = load_blockchain(&args.blockchain_state).unwrap();
+
+    info!("Loading the available mempool from {}", args.mempool);
+    let transactions = load_transactions(&args.mempool).unwrap();
+
     let mut most_recent_block = blockchain
         .iter()
         .max_by(|b1: &&Block, b2: &&Block| b1.header.timestamp.cmp(&b2.header.timestamp))
         .unwrap();
 
-    let transactions = load_transactions().unwrap();
     let mut executable_transactions =
         find_executable_transactions(transactions, most_recent_block.header.timestamp + 10);
 
@@ -91,8 +98,14 @@ fn produce_blocks(args: Args) {
     }
 
     fs::write(
-        "new-blockchain.js",
+        &args.blockchain_state_output,
         serde_json::to_string_pretty(&blockchain).unwrap(),
+    )
+    .unwrap();
+
+    fs::write(
+        &args.mempool_output,
+        serde_json::to_string_pretty(&executable_transactions).unwrap(),
     )
     .unwrap();
 }
@@ -107,8 +120,8 @@ fn get_transaction_hash(
     Some(transaction.hash().to_owned())
 }
 
-fn load_blockchain() -> Result<Vec<Block>, String> {
-    let file_str_contents = read_file_contents("blockchain.json").unwrap();
+fn load_blockchain(source_file_name: &str) -> Result<Vec<Block>, String> {
+    let file_str_contents = read_file_contents(source_file_name).unwrap();
     let blockchain: Vec<Block> = serde_json::from_str(&file_str_contents).unwrap();
     Ok(blockchain)
 }
@@ -121,8 +134,8 @@ fn read_file_contents(file_name: &str) -> Result<String, io::Error> {
     Ok(file_contents.to_string())
 }
 
-fn load_transactions() -> Result<Vec<Transaction>, String> {
-    let file_str_contents = read_file_contents("mempool.json").unwrap();
+fn load_transactions(file_name: &str) -> Result<Vec<Transaction>, String> {
+    let file_str_contents = read_file_contents(file_name).unwrap();
     let transactions: Vec<Transaction> = serde_json::from_str(&file_str_contents).unwrap();
     Ok(transactions)
 }
