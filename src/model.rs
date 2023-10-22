@@ -1,6 +1,7 @@
 pub mod blockchain {
     use std::fmt::Display;
 
+    use crypto_bigint::U256;
     use serde::{Deserialize, Serialize};
     use sha256::digest;
 
@@ -95,9 +96,13 @@ pub mod blockchain {
                 let hash_a = current_hash;
                 let hash_b = hashes[i].to_string();
 
+                let hash_a_value = U256::from_be_hex(hash_a.clone().trim_start_matches("0x"));
+                let hash_b_value =
+                    U256::from_be_hex(hash_b.clone().clone().trim_start_matches("0x"));
+
                 // The order of concatenation depends on the comparison of the
                 // strings
-                current_hash = if hash_a < hash_b {
+                current_hash = if hash_a_value < hash_b_value {
                     digest(hash_a + &hash_b)
                 } else {
                     digest(hash_b + &hash_a)

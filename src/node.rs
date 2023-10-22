@@ -1,6 +1,7 @@
 pub mod miner {
     use std::fs;
 
+    use crypto_bigint::U256;
     use log::{debug, info};
     use sha256::digest;
 
@@ -67,7 +68,7 @@ pub mod miner {
 
     /// Here the intermediate hashes don't have 0x00 in front of them
     pub fn construct_merkle_tree(transaction_hashes: Vec<String>) -> MerkleTreeNode {
-        // is the comparison operator used here the string or numberical comparison?
+        // is the comparison operator used here the string or numerical comparison?
         let null_string = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
         let mut nodes: Vec<MerkleTreeNode> = transaction_hashes
@@ -94,7 +95,16 @@ pub mod miner {
                 let hash_a = node_a.hash.clone();
                 let hash_b = node_b.hash.clone();
 
-                let new_hash: String = if hash_a < hash_b {
+                let hash_a_value = U256::from_be_hex(node_a
+                    .hash
+                    .clone()
+                    .trim_start_matches("0x"));
+                let hash_b_value = U256::from_be_hex(node_b
+                    .hash
+                    .clone()
+                    .trim_start_matches("0x"));
+
+                let new_hash: String = if hash_a_value < hash_b_value {
                     digest(hash_a + &hash_b)
                 } else {
                     digest(hash_b + &hash_a)
