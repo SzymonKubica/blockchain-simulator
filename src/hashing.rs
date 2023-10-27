@@ -56,7 +56,7 @@ pub mod hashing {
             );
             let hash: String = digest(strings.to_string());
 
-            return "0x".to_string() + &hash;
+            return hash;
         }
     }
 }
